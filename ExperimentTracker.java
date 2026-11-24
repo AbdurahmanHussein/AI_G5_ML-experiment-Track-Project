@@ -1,23 +1,14 @@
 import java.util.ArrayList;
-import java.util.HashMap;
 
 public class ExperimentTracker {
-    private HashMap<Integer, Experiment> experiments;
-
-    public ExperimentTracker() {
-        this.experiments = new HashMap<>();
-    }
+    private final InMemoryExperimentRepository repository = new InMemoryExperimentRepository();
 
     public boolean addExperiment(Experiment experiment) {
-        if (experiments.containsKey(experiment.getId())) {
-            return false;
-        }
-        experiments.put(experiment.getId(), experiment);
-        return true;
+        return repository.add(experiment);
     }
 
     public ArrayList<Experiment> getAll() {
-        return new ArrayList<>(experiments.values());
+        return repository.getAll();
     }
 
     public void displayAll() {
@@ -41,7 +32,7 @@ public class ExperimentTracker {
             return found;
         }
 
-        for (Experiment e : experiments.values()) {
+        for (Experiment e : repository.getAll()) {
             String name = e.getName().toLowerCase();
             String modelName = e.getModel().getName().toLowerCase();
             if (name.contains(target) || modelName.contains(target)) {
@@ -52,11 +43,11 @@ public class ExperimentTracker {
     }
 
     public Experiment findById(int id) {
-        return experiments.get(id);
+        return repository.findById(id);
     }
 
     public boolean updateExperiment(int id, String name, Model model, String date) {
-        Experiment existing = experiments.get(id);
+        Experiment existing = repository.findById(id);
         if (existing == null) {
             return false;
         }
@@ -64,10 +55,10 @@ public class ExperimentTracker {
         existing.setName(name);
         existing.setModel(model);
         existing.setDate(date);
-        return true;
+        return repository.update(existing);
     }
 
     public boolean removeExperiment(int id) {
-        return experiments.remove(id) != null;
+        return repository.delete(id);
     }
 }
