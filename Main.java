@@ -2,6 +2,7 @@ import java.util.ArrayList;
 import java.util.Scanner;
 import java.io.IOException;
 import java.nio.file.Path;
+import java.time.LocalDate;
 
 public class Main {
     private static final Scanner scanner = new Scanner(System.in);
@@ -14,6 +15,8 @@ public class Main {
         try {
             csv.load(tracker);
             runMenu();
+        } catch (java.util.NoSuchElementException endOfInput) {
+            System.out.println("\nTerminal input ended. Any unfinished entry was discarded.");
         } catch (IOException error) {
             System.err.println("Storage error: " + error.getMessage());
             System.err.println("MLTrack closed. Check the data file before trying again.");
@@ -86,24 +89,26 @@ public class Main {
 
         String name = readText("Experiment name: ");
         Model model = readModel();
-        String date = readText("Date (e.g. 2026-11-17): ");
+        String date = readWithDefault("Date (YYYY-MM-DD)", LocalDate.now().toString());
 
         Experiment experiment = new Experiment(id, name, model, date);
 
-        System.out.println("Add parameters (type 'done' as the name to stop):");
+        System.out.println("Add model settings such as learning_rate or batch_size.");
         while (true) {
-            String parameterName = readText("  Parameter name: ");
-            if (parameterName.equalsIgnoreCase("done")) {
+            System.out.print("  Parameter name (Enter or 'done' to continue to results): ");
+            String parameterName = scanner.nextLine().trim();
+            if (parameterName.isEmpty() || parameterName.equalsIgnoreCase("done")) {
                 break;
             }
             double parameterValue = readDouble("  Value: ");
             experiment.addParameter(new Parameter(parameterName, parameterValue));
         }
 
-        System.out.println("Add evaluation results (type 'done' as the metric to stop):");
+        System.out.println("Add measured results such as accuracy or precision.");
         while (true) {
-            String metric = readText("  Metric name: ");
-            if (metric.equalsIgnoreCase("done")) {
+            System.out.print("  Metric name (Enter or 'done' to save the experiment): ");
+            String metric = scanner.nextLine().trim();
+            if (metric.isEmpty() || metric.equalsIgnoreCase("done")) {
                 break;
             }
             double value = readDouble("  Value: ");
@@ -131,17 +136,50 @@ public class Main {
 
     private static void updateExperiment() throws IOException {
         int id = readInt("Id of the experiment to update: ");
-        if (tracker.findById(id) == null) {
+        Experiment current = tracker.findById(id);
+        if (current == null) {
             System.out.println("Experiment not found.");
             return;
         }
 
-        String name = readText("New name: ");
-        Model model = readModel();
-        String date = readText("New date: ");
-        tracker.updateExperiment(id, name, model, date);
+        System.out.println("What do you want to edit? 1. Name  2. Model  3. Date  4. Parameters  5. Results  0. Cancel");
+        switch (readInt("Choose a field: ")) {
+            case 1 -> current.setName(readWithDefault("Experiment name", current.getName()));
+            case 2 -> current.setModel(readModel());
+            case 3 -> current.setDate(readWithDefault("Date (YYYY-MM-DD)", current.getDate()));
+            case 4 -> {
+                int index = selectEntry(current.getParameters());
+                if (index < 0) return;
+                current.getParameters().get(index).setValue(readDouble("New parameter value: "));
+            }
+            case 5 -> {
+                int index = selectEntry(current.getResults());
+                if (index < 0) return;
+                current.getResults().get(index).setValue(readDouble("New result value: "));
+            }
+            case 0 -> { return; }
+            default -> {
+                System.out.println("Unknown field. No changes saved.");
+                return;
+            }
+        }
         csv.save(tracker);
         System.out.println("Experiment updated.");
+    }
+
+    private static int selectEntry(java.util.List<?> entries) {
+        if (entries.isEmpty()) {
+            System.out.println("There are no entries to edit.");
+            return -1;
+        }
+        for (int i = 0; i < entries.size(); i++) {
+            System.out.println((i + 1) + ". " + entries.get(i));
+        }
+        while (true) {
+            int choice = readInt("Choose an entry (0 to cancel): ");
+            if (choice >= 0 && choice <= entries.size()) return choice - 1;
+            System.out.println("Choose one of the listed numbers.");
+        }
     }
 
     private static void deleteExperiment() throws IOException {
@@ -152,6 +190,12 @@ public class Main {
         } else {
             System.out.println("Experiment not found.");
         }
+    }
+
+    private static String readWithDefault(String label, String defaultValue) {
+        System.out.print(label + " [Enter for " + defaultValue + "]: ");
+        String input = scanner.nextLine().trim();
+        return input.isEmpty() ? defaultValue : input;
     }
 
     private static String readText(String prompt) {
