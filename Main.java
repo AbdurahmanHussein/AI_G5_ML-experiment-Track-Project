@@ -1,11 +1,26 @@
 import java.util.ArrayList;
 import java.util.Scanner;
+import java.io.IOException;
+import java.nio.file.Path;
 
 public class Main {
     private static final Scanner scanner = new Scanner(System.in);
     private static final ExperimentTracker tracker = new ExperimentTracker();
+    private static final Path dataFile = Path.of("experiments.csv").toAbsolutePath();
+    private static final ExperimentCsv csv = new ExperimentCsv(dataFile);
 
     public static void main(String[] args) {
+        System.out.println("Data file: " + dataFile);
+        try {
+            csv.load(tracker);
+            runMenu();
+        } catch (IOException error) {
+            System.err.println("Storage error: " + error.getMessage());
+            System.err.println("MLTrack closed. Check the data file before trying again.");
+        }
+    }
+
+    private static void runMenu() throws IOException {
         int choice;
         do {
             printMenu();
@@ -62,7 +77,7 @@ public class Main {
         }
     }
 
-    private static void addExperiment() {
+    private static void addExperiment() throws IOException {
         int id = readInt("Experiment id (number): ");
         if (tracker.findById(id) != null) {
             System.out.println("An experiment with this id already exists.");
@@ -96,6 +111,7 @@ public class Main {
         }
 
         tracker.addExperiment(experiment);
+        csv.save(tracker);
         System.out.println("Experiment added.");
     }
 
@@ -113,7 +129,7 @@ public class Main {
         }
     }
 
-    private static void updateExperiment() {
+    private static void updateExperiment() throws IOException {
         int id = readInt("Id of the experiment to update: ");
         if (tracker.findById(id) == null) {
             System.out.println("Experiment not found.");
@@ -124,12 +140,14 @@ public class Main {
         Model model = readModel();
         String date = readText("New date: ");
         tracker.updateExperiment(id, name, model, date);
+        csv.save(tracker);
         System.out.println("Experiment updated.");
     }
 
-    private static void deleteExperiment() {
+    private static void deleteExperiment() throws IOException {
         int id = readInt("Id of the experiment to delete: ");
         if (tracker.removeExperiment(id)) {
+            csv.save(tracker);
             System.out.println("Experiment deleted.");
         } else {
             System.out.println("Experiment not found.");
