@@ -184,12 +184,20 @@ public class Main {
 
     private static void deleteExperiment() throws IOException {
         int id = readInt("Id of the experiment to delete: ");
-        if (tracker.removeExperiment(id)) {
-            csv.save(tracker);
-            System.out.println("Experiment deleted.");
-        } else {
+        Experiment experiment = tracker.findById(id);
+        if (experiment == null) {
             System.out.println("Experiment not found.");
+            return;
         }
+        String answer = readWithDefault("Delete experiment #" + id + " (" + experiment.getName()
+                + ")? Type yes to confirm", "no");
+        if (!answer.equalsIgnoreCase("yes")) {
+            System.out.println("Deletion cancelled.");
+            return;
+        }
+        tracker.removeExperiment(id);
+        csv.save(tracker);
+        System.out.println("Experiment deleted.");
     }
 
     private static String readWithDefault(String label, String defaultValue) {
