@@ -102,6 +102,7 @@ public class Main {
             }
             double parameterValue = readDouble("  Value: ");
             experiment.addParameter(new Parameter(parameterName, parameterValue));
+            if (!chooseAnother("Type 1 to add another parameter, or press Enter to move to results: ")) break;
         }
 
         System.out.println("Add measured results such as accuracy or precision.");
@@ -113,6 +114,7 @@ public class Main {
             }
             double value = readDouble("  Value: ");
             experiment.addResult(new EvaluationResult(metric, value));
+            if (!chooseAnother("Type 1 to add another metric, or press Enter to save the experiment: ")) break;
         }
 
         tracker.addExperiment(experiment);
@@ -142,42 +144,65 @@ public class Main {
             return;
         }
 
-        System.out.println("What do you want to edit? 1. Name  2. Model  3. Date  4. Parameters  5. Results  0. Cancel");
+        while (editOneField(current)) {
+            csv.save(tracker);
+            System.out.println("Change saved for experiment #" + id + ".");
+            if (!chooseAnother("Press Enter to finish, or type 1 to edit another field: ")) return;
+        }
+    }
+
+    private static boolean chooseAnother(String prompt) {
+        while (true) {
+            System.out.print(prompt);
+            String choice = scanner.nextLine().trim();
+            if (choice.isEmpty() || choice.equalsIgnoreCase("done")) return false;
+            if (choice.equals("1")) return true;
+            System.out.println("Please choose Enter or 1.");
+        }
+    }
+
+    private static boolean editOneField(Experiment current) {
+        System.out.println("What do you want to edit? 1. Name  2. Model  3. Date  4. Parameters  5. Results  0. Finish");
         switch (readInt("Choose a field: ")) {
             case 1 -> current.setName(readWithDefault("Experiment name", current.getName()));
             case 2 -> current.setModel(readModel());
             case 3 -> current.setDate(readWithDefault("Date (YYYY-MM-DD)", current.getDate()));
             case 4 -> {
-                int index = selectEntry(current.getParameters());
-                if (index < 0) return;
-                current.getParameters().get(index).setValue(readDouble("New parameter value: "));
+                int index = selectEntry(current.getParameters(), "parameter");
+                if (index < 0) return false;
+                if (index == current.getParameters().size()) {
+                    current.addParameter(new Parameter(readText("Parameter name: "), readDouble("Value: ")));
+                } else {
+                    current.getParameters().get(index).setValue(readDouble("New parameter value: "));
+                }
             }
             case 5 -> {
-                int index = selectEntry(current.getResults());
-                if (index < 0) return;
-                current.getResults().get(index).setValue(readDouble("New result value: "));
+                int index = selectEntry(current.getResults(), "metric");
+                if (index < 0) return false;
+                if (index == current.getResults().size()) {
+                    current.addResult(new EvaluationResult(readText("Metric name: "), readDouble("Value: ")));
+                } else {
+                    current.getResults().get(index).setValue(readDouble("New result value: "));
+                }
             }
-            case 0 -> { return; }
+            case 0 -> { return false; }
             default -> {
-                System.out.println("Unknown field. No changes saved.");
-                return;
+                System.out.println("Unknown field. No change made to this field.");
+                return false;
             }
         }
-        csv.save(tracker);
-        System.out.println("Experiment updated.");
+        return true;
     }
 
-    private static int selectEntry(java.util.List<?> entries) {
-        if (entries.isEmpty()) {
-            System.out.println("There are no entries to edit.");
-            return -1;
-        }
+    private static int selectEntry(java.util.List<?> entries, String label) {
         for (int i = 0; i < entries.size(); i++) {
             System.out.println((i + 1) + ". " + entries.get(i));
         }
+        int addChoice = entries.size() + 1;
+        System.out.println(addChoice + ". Add a new " + label);
         while (true) {
             int choice = readInt("Choose an entry (0 to cancel): ");
-            if (choice >= 0 && choice <= entries.size()) return choice - 1;
+            if (choice >= 0 && choice <= addChoice) return choice - 1;
             System.out.println("Choose one of the listed numbers.");
         }
     }
